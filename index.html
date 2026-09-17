@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand Addition Tracker - Bradken Merlimau</title>
+    <meta name="theme-color" content="#d97706">
+    <meta name="description" content="Sand Addition Tracker for Bradken Merlimau">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        silica: {
+                            light: '#fef3c7',
+                            DEFAULT: '#d97706',
+                            dark: '#78350f'
+                        },
+                        chromite: {
+                            light: '#e2e8f0',
+                            DEFAULT: '#334155',
+                            dark: '#0f172a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col selection:bg-amber-200">
+
+    <!-- Main Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-amber-500 text-slate-900 p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10">
+                    <i class="fa-solid fa-cubes-stacked"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight tracking-tight">Bradken Merlimau</h1>
+                    <p class="text-xs text-amber-400 font-medium">Sand Addition Logging System</p>
+                </div>
+            </div>
+
+            <!-- Active User Profile Bar -->
+        <div id="userHeaderInfo" class="hidden flex items-center space-x-4">
+            <div class="text-right hidden sm:block">
+                <div class="flex items-center justify-end space-x-1.5">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <p id="headerWorkerName" class="text-sm font-semibold text-slate-200">Worker</p>
+                </div>
+                <p id="headerWorkerDetails" class="text-xs text-slate-400">ID:</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-full p-1.5 flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-full bg-amber-500 text-slate-900 flex items-center justify-center font-bold text-sm" id="userAvatar">
+                    W
+                </div>
+                <button onclick="logoutWorker()" title="Sign Out / Switch Worker" class="text-slate-400 hover:text-red-400 p-1.5 transition rounded-lg hover:bg-slate-700">
+                    <i class="fa-solid fa-right-from-bracket text-base"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <!-- Login Modal Screen -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 border border-slate-200">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 text-amber-600 mb-4 text-2xl">
+                    <i class="fa-solid fa-id-card"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Worker Sign In</h2>
+                <p class="text-sm text-slate-500 mt-1">Please key in your Worker ID to start recording sand batch additions.</p>
+            </div>
+
+            <form id="loginForm" onsubmit="handleWorkerLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1" for="loginWorkerId">Worker ID <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-hashtag"></i>
+                        </span>
+                        <input type="text" id="loginWorkerId" required placeholder="e.g. W-1042 or 8821" 
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-slate-800 font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1" for="loginWorkerName">Worker Name (Optional)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="loginWorkerName" placeholder="e.g. John Doe" 
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-slate-800 font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1" for="loginStation">Silo / Station</label>
+                    <select id="loginStation" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white font-medium text-slate-700">
+                        <option value="Continuous Mixer 1000">CM10K</option>
+                        <option value="Wes Core Shooter">CB22</option>
+                        <option value="Batch Mixer">Batch Mixer</option>
+                        <option value="New Sand Hopper">BE09</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 px-4 rounded-xl shadow-lg shadow-amber-500/25 transition duration-200 flex items-center justify-center space-x-2">
+                    <span>Access Sand Entry Form</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Workspace -->
+    <main id="appContent" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 hidden">
+
+        <!-- Live Status Bar & Current Timestamp Banner -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-700">
+            <div class="space-y-1">
+                <div class="flex items-center space-x-2">
+                    <span class="inline-block w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                    <span class="text-xs uppercase tracking-wider font-semibold text-slate-400">Active Logging Session</span>
+                </div>
+                <div class="text-xl sm:text-2xl font-bold flex items-center space-x-2">
+                    <span id="activeWorkerDisplay" class="text-amber-400">Worker ID</span>
+                    <span class="text-slate-500 font-normal">|</span>
+                    <span id="activeStationDisplay" class="text-slate-300 text-lg">Station</span>
+                </div>
+            </div>
+
+            <!-- Auto-captured Date & Time Badge -->
+            <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3.5 flex items-center space-x-3.5">
+                <div class="bg-amber-500/20 text-amber-400 p-2.5 rounded-lg text-lg">
+                    <i class="fa-regular fa-clock"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">System Auto-Timestamp</div>
+                    <div id="liveClockDate" class="text-sm font-semibold text-white">--</div>
+                    <div id="liveClockTime" class="text-xs text-amber-300 font-mono">--:--:--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Layout: Entry Form + Quick Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Form Column (7 Cols) -->
+            <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-7 shadow-sm border border-slate-200">
+                <div class="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-plus text-amber-500"></i>
+                            Key In Sand Addition Data
+                        </h2>
+                        <p class="text-xs text-slate-500">Select the type of sand and enter exact addition weight.</p>
+                    </div>
+                    <span class="bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-amber-200">
+                        Date Auto-Filled
+                    </span>
+                </div>
+
+                <form id="sandAdditionForm" onsubmit="handleSandSubmit(event)" class="space-y-6">
+
+                    <!-- Field 1: Sand Type Selection Cards -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
+                            1. Select Sand Type <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Pure Silica -->
+                            <label class="relative flex items-center p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer transition hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/60 has-[:checked]:shadow-sm group">
+                                <input type="radio" name="sandType" value="Pure Silica" required class="sr-only peer">
+                                <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mr-3 font-bold text-lg group-hover:scale-105 transition-transform">
+                                    <i class="fa-solid fa-gem"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-slate-900">Pure Silica</div>
+                                    <div class="text-[11px] text-slate-500">Fresh High-Purity Silica Sand</div>
+                                </div>
+                                <i class="fa-solid fa-circle-check text-amber-500 absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity"></i>
+                            </label>
+
+                            <!-- Reclaimed Silica -->
+                            <label class="relative flex items-center p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer transition hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/60 has-[:checked]:shadow-sm group">
+                                <input type="radio" name="sandType" value="Reclaimed Silica" required class="sr-only peer">
+                                <div class="w-10 h-10 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center mr-3 font-bold text-lg group-hover:scale-105 transition-transform">
+                                    <i class="fa-solid fa-recycle"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-slate-900">Reclaimed Silica</div>
+                                    <div class="text-[11px] text-slate-500">Recycled / Processed Silica</div>
+                                </div>
+                                <i class="fa-solid fa-circle-check text-amber-500 absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity"></i>
+                            </label>
+
+                            <!-- Pure Chromite -->
+                            <label class="relative flex items-center p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer transition hover:border-slate-600 has-[:checked]:border-slate-800 has-[:checked]:bg-slate-100 has-[:checked]:shadow-sm group">
+                                <input type="radio" name="sandType" value="Pure Chromite" required class="sr-only peer">
+                                <div class="w-10 h-10 rounded-lg bg-slate-200 text-slate-800 flex items-center justify-center mr-3 font-bold text-lg group-hover:scale-105 transition-transform">
+                                    <i class="fa-solid fa-mountain"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-slate-900">Pure Chromite</div>
+                                    <div class="text-[11px] text-slate-500">Heavy Duty Black Chromite Sand</div>
+                                </div>
+                                <i class="fa-solid fa-circle-check text-slate-800 absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity"></i>
+                            </label>
+
+                            <!-- Reclaimed Chromite -->
+                            <label class="relative flex items-center p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer transition hover:border-slate-600 has-[:checked]:border-slate-800 has-[:checked]:bg-slate-100 has-[:checked]:shadow-sm group">
+                                <input type="radio" name="sandType" value="Reclaimed Chromite" required class="sr-only peer">
+                                <div class="w-10 h-10 rounded-lg bg-slate-300 text-slate-900 flex items-center justify-center mr-3 font-bold text-lg group-hover:scale-105 transition-transform">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-slate-900">Reclaimed Chromite</div>
+                                    <div class="text-[11px] text-slate-500">Recovered Chromite Sand</div>
+                                </div>
+                                <i class="fa-solid fa-circle-check text-slate-800 absolute top-3 right-3 opacity-0 peer-checked:opacity-100 transition-opacity"></i>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Field 2: Amount Input & Quick Add Controls -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600" for="sandAmount">
+                                2. Amount Added (Tonnes) <span class="text-red-500">*</span>
+                            </label>
+                            <span class="text-xs text-slate-400 font-medium">Enter weight in Tonnes</span>
+                        </div>
+
+                        <div class="flex rounded-xl shadow-sm">
+                            <div class="relative flex-grow">
+                                <input type="number" id="sandAmount" step="0.01" min="0.01" max="10000" required placeholder="0.00"
+                                    class="w-full pl-4 pr-12 py-3 rounded-l-xl border border-r-0 border-slate-300 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
+                            </div>
+                            <div class="px-4 bg-slate-100 border border-slate-300 rounded-r-xl font-bold text-slate-700 flex items-center text-sm select-none">
+                                Tonnes
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Field 3: Auto Date Preview & Batch Note -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                                Recorded Date & Time
+                            </label>
+                            <div class="flex items-center text-xs font-bold text-slate-700 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                                <i class="fa-regular fa-calendar-check text-emerald-600 mr-2"></i>
+                                <span id="autoFormDateDisplay">Current Date</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1" for="batchNote">
+                                Batch / Silo Note (Optional)
+                            </label>
+                            <input type="text" id="batchNote" placeholder="e.g. Silo #3 refill, Batch A" 
+                                class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 text-base group">
+                        <i class="fa-solid fa-floppy-disk text-amber-400 group-hover:scale-110 transition-transform"></i>
+                        <span>Submit Sand Addition Record</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Analytics Summary Side Panel (5 Cols) -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Shift Metrics Cards -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center justify-between">
+                        <span>Today's Total Sand Summary</span>
+                        <i class="fa-solid fa-chart-pie text-slate-400"></i>
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-amber-50 rounded-xl p-3.5 border border-amber-200/60">
+                            <span class="text-[11px] font-bold uppercase text-amber-800 block">Total Silica</span>
+                            <div class="text-xl font-black text-amber-900 mt-1" id="statSilicaTotal">0 T</div>
+                            <span class="text-[10px] text-amber-700 mt-0.5 block" id="statSilicaCount">0 additions</span>
+                        </div>
+
+                        <div class="bg-slate-100 rounded-xl p-3.5 border border-slate-200">
+                            <span class="text-[11px] font-bold uppercase text-slate-700 block">Total Chromite</span>
+                            <div class="text-xl font-black text-slate-900 mt-1" id="statChromiteTotal">0 T</div>
+                            <span class="text-[10px] text-slate-600 mt-0.5 block" id="statChromiteCount">0 additions</span>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Category Breakdown Bars -->
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div>
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span class="text-slate-600">Pure Silica</span>
+                                <span id="barPureSilicaVal" class="font-bold text-slate-800">0 T</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div id="barPureSilica" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span class="text-slate-600">Reclaimed Silica</span>
+                                <span id="barRecSilicaVal" class="font-bold text-slate-800">0 T</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div id="barRecSilica" class="bg-amber-300 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span class="text-slate-600">Pure Chromite</span>
+                                <span id="barPureChromiteVal" class="font-bold text-slate-800">0 T</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div id="barPureChromite" class="bg-slate-800 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span class="text-slate-600">Reclaimed Chromite</span>
+                                <span id="barRecChromiteVal" class="font-bold text-slate-800">0 T</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div id="barRecChromite" class="bg-slate-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Worker Session Details Badge -->
+                <div class="bg-slate-900 rounded-2xl p-5 text-white shadow-sm border border-slate-800">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Logged-in Worker Badge</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between py-1 border-b border-slate-800">
+                            <span class="text-slate-400">Worker ID:</span>
+                            <span id="badgeWorkerId" class="font-mono font-bold text-amber-400">-</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-800">
+                            <span class="text-slate-400">Worker Name:</span>
+                            <span id="badgeWorkerName" class="font-semibold text-slate-200">-</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-800">
+                            <span class="text-slate-400">Station:</span>
+                            <span id="badgeStation" class="font-semibold text-slate-200">-</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-400">My Entries Today:</span>
+                            <span id="badgeMyEntries" class="font-bold text-emerald-400">0 records</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Historical Entries Log Table -->
+        <div class="bg-white rounded-2xl p-5 sm:p-7 shadow-sm border border-slate-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-slate-700"></i>
+                        Sand Addition Logs
+                    </h2>
+                    <p class="text-xs text-slate-500">Real-time records keyed in by workers with auto-timestamps.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="filterSandType" onchange="filterLogTable()" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none">
+                        <option value="ALL">All Sand Types</option>
+                        <option value="Pure Silica">Pure Silica</option>
+                        <option value="Reclaimed Silica">Reclaimed Silica</option>
+                        <option value="Pure Chromite">Pure Chromite</option>
+                        <option value="Reclaimed Chromite">Reclaimed Chromite</option>
+                    </select>
+
+                    <button onclick="exportToCSV()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>Export CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                            <th class="py-3 px-4">Date & Time</th>
+                            <th class="py-3 px-4">Worker ID</th>
+                            <th class="py-3 px-4">Sand Type</th>
+                            <th class="py-3 px-4 text-right">Amount (Tonnes)</th>
+                            <th class="py-3 px-4">Silo / Station</th>
+                            <th class="py-3 px-4">Note</th>
+                            <th class="py-3 px-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sandLogsTableBody" class="divide-y divide-slate-100 text-xs">
+                        <!-- Rows rendered dynamically -->
+                    </tbody>
+                </table>
+
+                <!-- Empty State -->
+                <div id="emptyLogState" class="py-12 text-center text-slate-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-2 opacity-50"></i>
+                    <p class="font-medium text-sm">No sand addition entries recorded yet.</p>
+                    <p class="text-xs text-slate-400">Use the form above to key in the first addition batch.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        // Register service worker for PWA installation/offline shell
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.error('Service worker registration failed:', err));
+            });
+        }
+
+        // Application state
+        let currentUser = null;
+        let sandLogs = [];
+
+        // Supabase configuration
+        // Publishable/anon keys are intended for browser apps. Never put a service_role/secret key here.
+        const SUPABASE_URL = 'https://kkvgvcpcekdldopylkqe.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_uyv7ExPFSvO2YRu-WC2z1Q_H7-MkqFr';
+        const { createClient } = window.supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        // Initialize App on DOM Content Loaded with Persistent Session Restore
+        document.addEventListener('DOMContentLoaded', () => {
+            // Restore saved worker session if logged in previously
+            const savedWorker = localStorage.getItem('sandTracker_worker');
+            if (savedWorker) {
+                try {
+                    currentUser = JSON.parse(savedWorker);
+                } catch (e) {
+                    console.error('Failed to parse saved worker session', e);
+                }
+            }
+
+            startClock();
+            checkWorkerSession();
+            loadLogsFromSupabase();
+        });
+
+        // Live system clock updating
+        function startClock() {
+            const dateEl = document.getElementById('liveClockDate');
+            const timeEl = document.getElementById('liveClockTime');
+            const formDateEl = document.getElementById('autoFormDateDisplay');
+
+            function update() {
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                if (dateEl) dateEl.textContent = dateStr;
+                if (timeEl) timeEl.textContent = timeStr;
+                if (formDateEl) formDateEl.textContent = `${dateStr} @ ${timeStr}`;
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        function checkWorkerSession() {
+            if (currentUser) {
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('appContent').classList.remove('hidden');
+                document.getElementById('userHeaderInfo').classList.remove('hidden');
+
+                // Update UI text
+                document.getElementById('headerWorkerName').textContent = currentUser.name || `Worker ${currentUser.workerId}`;
+                document.getElementById('headerWorkerDetails').textContent = `ID: ${currentUser.workerId} | ${currentUser.station}`;
+                document.getElementById('userAvatar').textContent = (currentUser.name || currentUser.workerId).charAt(0).toUpperCase();
+
+                document.getElementById('activeWorkerDisplay').textContent = `Worker ID: ${currentUser.workerId}`;
+                document.getElementById('activeStationDisplay').textContent = currentUser.station;
+
+                document.getElementById('badgeWorkerId').textContent = currentUser.workerId;
+                document.getElementById('badgeWorkerName').textContent = currentUser.name || 'N/A';
+                if (document.getElementById('badgeStation')) {
+                    document.getElementById('badgeStation').textContent = currentUser.station;
+                }
+
+                updateMyEntriesCount();
+            } else {
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('appContent').classList.add('hidden');
+                document.getElementById('userHeaderInfo').classList.add('hidden');
+            }
+        }
+
+        function handleWorkerLogin(e) {
+            e.preventDefault();
+            const workerId = document.getElementById('loginWorkerId').value.trim();
+            const workerName = document.getElementById('loginWorkerName').value.trim();
+            const station = document.getElementById('loginStation').value;
+
+            if (!workerId) {
+                showToast('Please enter a valid Worker ID', 'error');
+                return;
+            }
+
+            currentUser = {
+                workerId,
+                name: workerName,
+                station,
+                loginTime: new Date()
+            };
+
+            // Save worker session so login is required ONLY ONCE per device/session
+            localStorage.setItem('sandTracker_worker', JSON.stringify(currentUser));
+
+            checkWorkerSession();
+            showToast(`Logged in! Session saved for Worker ID: ${workerId}`, 'success');
+        }
+
+        function logoutWorker() {
+            currentUser = null;
+            // Clear stored session when worker explicitly signs out
+            localStorage.removeItem('sandTracker_worker');
+            checkWorkerSession();
+            showToast('Worker session ended. Sign in required for next worker.', 'info');
+        }
+
+        function addPresetAmount(val) {
+            const input = document.getElementById('sandAmount');
+            const current = parseFloat(input.value) || 0;
+            input.value = (current + val).toFixed(1).replace(/\.0$/, '');
+        }
+
+        function clearAmount() {
+            document.getElementById('sandAmount').value = '';
+        }
+
+        async function handleSandSubmit(e) {
+            e.preventDefault();
+
+            if (!currentUser) {
+                showToast('Worker session expired. Please sign in again.', 'error');
+                checkWorkerSession();
+                return;
+            }
+
+            const sandTypeRadios = document.getElementsByName('sandType');
+            let selectedSandType = '';
+            for (const radio of sandTypeRadios) {
+                if (radio.checked) {
+                    selectedSandType = radio.value;
+                    break;
+                }
+            }
+
+            const amount = parseFloat(document.getElementById('sandAmount').value);
+            const note = document.getElementById('batchNote').value.trim();
+
+            if (!selectedSandType) {
+                showToast('Please select a type of sand added.', 'error');
+                return;
+            }
+
+            if (isNaN(amount) || amount <= 0) {
+                showToast('Please enter a valid amount of sand in tonnes.', 'error');
+                return;
+            }
+
+            const now = new Date();
+            const newLog = {
+                id: 'LOG-' + Date.now(),
+                workerId: currentUser.workerId,
+                workerName: currentUser.name || 'N/A',
+                station: currentUser.station,
+                sandType: selectedSandType,
+                amount: amount,
+                timestamp: now.toISOString(),
+                formattedDate: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+                note: note || '-'
+            };
+
+            const submitButton = e.submitter || document.querySelector('#sandAdditionForm button[type="submit"]');
+            if (submitButton) submitButton.disabled = true;
+
+            const { error } = await supabaseClient.from('sand_logs').insert({
+                id: newLog.id,
+                worker_id: newLog.workerId,
+                worker_name: newLog.workerName,
+                station: newLog.station,
+                sand_type: newLog.sandType,
+                amount: newLog.amount,
+                timestamp: newLog.timestamp,
+                note: newLog.note
+            });
+
+            if (submitButton) submitButton.disabled = false;
+
+            if (error) {
+                console.error('Supabase insert error:', error);
+                showToast(`Could not save to database: ${error.message}`, 'error');
+                return;
+            }
+
+            document.getElementById('sandAmount').value = '';
+            document.getElementById('batchNote').value = '';
+            for (const radio of sandTypeRadios) radio.checked = false;
+
+            await loadLogsFromSupabase();
+            showToast(`Added ${amount} Tonnes of ${selectedSandType}!`, 'success');
+        }
+
+        async function loadLogsFromSupabase() {
+            const { data, error } = await supabaseClient
+                .from('sand_logs')
+                .select('*')
+                .order('timestamp', { ascending: false });
+
+            if (error) {
+                console.error('Supabase load error:', error);
+                showToast(`Database connection error: ${error.message}`, 'error');
+                sandLogs = [];
+            } else {
+                sandLogs = (data || []).map(row => ({
+                    id: row.id,
+                    workerId: row.worker_id,
+                    workerName: row.worker_name || 'N/A',
+                    station: row.station,
+                    sandType: row.sand_type,
+                    amount: Number(row.amount) || 0,
+                    timestamp: row.timestamp,
+                    formattedDate: new Date(row.timestamp).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+                    note: row.note || '-'
+                }));
+            }
+
+            renderLogsTable();
+            updateAnalyticsSummary();
+            updateMyEntriesCount();
+        }
+
+        function renderLogsTable() {
+            const tbody = document.getElementById('sandLogsTableBody');
+            const emptyState = document.getElementById('emptyLogState');
+            const filterValue = document.getElementById('filterSandType').value;
+
+            tbody.innerHTML = '';
+
+            const filtered = sandLogs.filter(item => {
+                if (filterValue === 'ALL') return true;
+                return item.sandType === filterValue;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+
+                // Sand Type badge color style
+                let badgeStyle = 'bg-amber-100 text-amber-800 border-amber-200';
+                if (log.sandType.includes('Chromite')) {
+                    badgeStyle = 'bg-slate-200 text-slate-800 border-slate-300';
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-regular fa-clock text-slate-400 text-xs"></i>
+                            <span>${log.formattedDate}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 font-mono font-bold text-amber-600">
+                        ${escapeHtml(log.workerId)}
+                        ${log.workerName !== 'N/A' ? `<span class="text-slate-400 font-normal block text-[10px]">${escapeHtml(log.workerName)}</span>` : ''}
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badgeStyle}">
+                            ${log.sandType}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right font-bold text-slate-900 text-sm whitespace-nowrap">
+                        ${log.amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 3})} <span class="text-xs font-normal text-slate-500">Tonnes</span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-600 whitespace-nowrap">${escapeHtml(log.station)}</td>
+                    <td class="py-3 px-4 text-slate-500 max-w-xs truncate">${escapeHtml(log.note)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="deleteLogEntry('${log.id}')" title="Delete record" class="text-slate-400 hover:text-red-500 p-1 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterLogTable() {
+            renderLogsTable();
+        }
+
+        async function deleteLogEntry(id) {
+            if (!confirm('Delete this sand addition record from the database?')) return;
+
+            const { error } = await supabaseClient
+                .from('sand_logs')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error('Supabase delete error:', error);
+                showToast(`Could not delete record: ${error.message}`, 'error');
+                return;
+            }
+
+            await loadLogsFromSupabase();
+            showToast('Log record removed from Supabase.', 'info');
+        }
+
+        function updateAnalyticsSummary() {
+            let pureSilica = 0, recSilica = 0, pureChromite = 0, recChromite = 0;
+            let silicaCount = 0, chromiteCount = 0;
+
+            sandLogs.forEach(log => {
+                const amt = Number(log.amount) || 0;
+                if (log.sandType === 'Pure Silica') {
+                    pureSilica += amt;
+                    silicaCount++;
+                } else if (log.sandType === 'Reclaimed Silica') {
+                    recSilica += amt;
+                    silicaCount++;
+                } else if (log.sandType === 'Pure Chromite') {
+                    pureChromite += amt;
+                    chromiteCount++;
+                } else if (log.sandType === 'Reclaimed Chromite') {
+                    recChromite += amt;
+                    chromiteCount++;
+                }
+            });
+
+            const totalSilica = pureSilica + recSilica;
+            const totalChromite = pureChromite + recChromite;
+            const grandTotal = totalSilica + totalChromite || 1; // Prevent div by 0
+
+            document.getElementById('statSilicaTotal').textContent = `${totalSilica.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('statSilicaCount').textContent = `${silicaCount} additions`;
+
+            document.getElementById('statChromiteTotal').textContent = `${totalChromite.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('statChromiteCount').textContent = `${chromiteCount} additions`;
+
+            // Update Progress Values & Bars
+            document.getElementById('barPureSilicaVal').textContent = `${pureSilica.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('barPureSilica').style.width = `${(pureSilica / grandTotal) * 100}%`;
+
+            document.getElementById('barRecSilicaVal').textContent = `${recSilica.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('barRecSilica').style.width = `${(recSilica / grandTotal) * 100}%`;
+
+            document.getElementById('barPureChromiteVal').textContent = `${pureChromite.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('barPureChromite').style.width = `${(pureChromite / grandTotal) * 100}%`;
+
+            document.getElementById('barRecChromiteVal').textContent = `${recChromite.toLocaleString(undefined, {maximumFractionDigits: 3})} T`;
+            document.getElementById('barRecChromite').style.width = `${(recChromite / grandTotal) * 100}%`;
+        }
+
+        function updateMyEntriesCount() {
+            if (!currentUser) return;
+            const count = sandLogs.filter(log => log.workerId === currentUser.workerId).length;
+            document.getElementById('badgeMyEntries').textContent = `${count} record${count === 1 ? '' : 's'}`;
+        }
+
+        // Keep all devices in sync when Supabase Realtime is enabled for sand_logs.
+        supabaseClient
+            .channel('sand_logs_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sand_logs' }, () => {
+                loadLogsFromSupabase();
+            })
+            .subscribe((status) => {
+                console.log('Supabase Realtime status:', status);
+            });
+
+        function exportToCSV() {
+            if (sandLogs.length === 0) {
+                showToast('No records available to export.', 'info');
+                return;
+            }
+
+            const headers = ['Log ID', 'Key In Timestamp', 'Worker ID', 'Worker Name', 'Station', 'Sand Type', 'Amount (Tonnes)', 'Notes'];
+            const rows = sandLogs.map(item => [
+                `"${item.id}"`,
+                `"${item.formattedDate}"`,
+                `"${item.workerId}"`,
+                `"${item.workerName}"`,
+                `"${item.station}"`,
+                `"${item.sandType}"`,
+                item.amount,
+                `"${(item.note || '').replace(/"/g, '""')}"`
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `Sand_Addition_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('CSV Exported successfully!', 'success');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let bg = 'bg-slate-900 text-white border-slate-700';
+            let icon = 'fa-circle-info text-blue-400';
+
+            if (type === 'success') {
+                bg = 'bg-slate-900 text-white border-emerald-500/50';
+                icon = 'fa-circle-check text-emerald-400';
+            } else if (type === 'error') {
+                bg = 'bg-slate-900 text-white border-red-500/50';
+                icon = 'fa-triangle-exclamation text-red-400';
+            }
+
+            toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-xl shadow-xl border text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0 ${bg}`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-base"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Animate out
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Helper to sanitize HTML text inputs
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
